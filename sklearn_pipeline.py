@@ -19,7 +19,6 @@ class AI4IFeatureEngineering(BaseEstimator, TransformerMixin):
         X["temp_diff"] = X["Process temperature"] - X["Air temperature"]
         X["torque_speed_ratio"] = X["Torque"] / X["Rotational speed"]
         X["wear_rate"] = X["Tool wear"] / X["Rotational speed"]
-
         return X
 
 
