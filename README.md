@@ -60,6 +60,7 @@ Additional variables:
 * **uncertainty** → uncertainty of the risk estimate
 
 ---
+## Three possible actions 
 
 ### Continue
 
@@ -130,7 +131,7 @@ Noise is added to simulate realistic measurements:
 
 | Variable            | Noise     |
 | ------------------- | --------- |
-| Air temperature     | N(2, 0.3) |
+| Air temperature     | $\mathcal{N}(2, 0.3)$ |
 | Process temperature | N(2, 0.3) |
 | Rotational speed    | N(2, 8)   |
 | Torque              | N(2, 0.8) |
