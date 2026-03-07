@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 import numpy as np
 import pandas as pd
 from stable_baselines3 import DQN
-
-
 from env import (
     ACTION_CONTINUE,
     ACTION_INSPECT,
@@ -25,9 +22,11 @@ def run_one_episode(env, policy_fn):
     total_reward = 0.0
     failure_count = 0
     steps = 0
+    action_list = []
 
     while not done:
         action = policy_fn(obs, info)
+        action_list.append(action)
         obs, reward, terminated, truncated, info = env.step(action)
         total_reward += reward
         steps += 1
@@ -39,15 +38,18 @@ def run_one_episode(env, policy_fn):
         "total_reward": total_reward,
         "steps": steps,
         "failure_count": failure_count,
+        "action_list" : np.array(action_list)
     }
 
 
 def evaluate_policy(env, policy_fn, n_episodes=100):
     results = [run_one_episode(env, policy_fn) for _ in range(n_episodes)]
+    
     return {
         "mean_reward": float(np.mean([r["total_reward"] for r in results])),
         "mean_steps": float(np.mean([r["steps"] for r in results])),
         "failure_rate": float(np.mean([r["failure_count"] > 0 for r in results])),
+        "action_list" : np.concat([r["action_list"] for r in results])
     }
 
 
@@ -88,6 +90,8 @@ def main():
     print("RL policy:", evaluate_policy(env, rl_policy, n_episodes=200))
     print("Always continue:", evaluate_policy(env, always_continue, n_episodes=200))
     print("Threshold policy:", evaluate_policy(env, threshold_policy, n_episodes=200))
+
+    return evaluate_policy(env, rl_policy, n_episodes=200)
 
 
 if __name__ == "__main__":

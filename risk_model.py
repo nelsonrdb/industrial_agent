@@ -31,7 +31,7 @@ def train_and_evaluate(
     model_out: str,
     features_out: str,
 ) -> None:
-    X, y, fe_transformer = prepare_features_and_target(load_data(data_path))
+    X, y, _ = prepare_features_and_target(load_data(data_path))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,

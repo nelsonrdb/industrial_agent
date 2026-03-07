@@ -19,16 +19,16 @@ ACTION_MAINTAIN = 2
 @dataclass
 class EnvConfig:
     max_steps: int = 20
-    inspect_cost: float = 1.0
-    maintain_cost: float = 3.0
-    failure_cost: float = 12.0
-    survival_reward: float = 1.0
-    high_risk_penalty: float = 2.0
-    risk_threshold: float = 0.6
-    wear_increase_min: float = 3.0
-    wear_increase_max: float = 10.0
+    inspect_cost: float = 0.4
+    maintain_cost: float = 4.5
+    failure_cost: float = 18.0
+    survival_reward: float = 1.5
+    high_risk_penalty: float = 4.0
+    risk_threshold: float = 0.55
+    wear_increase_min: float = 4.0
+    wear_increase_max: float = 9.0
     maintain_reset_min: float = 0.0
-    maintain_reset_max: float = 15.0
+    maintain_reset_max: float = 8.0
     noise_std_temp: float = 0.3
     noise_std_speed: float = 8.0
     noise_std_torque: float = 0.8
@@ -72,14 +72,14 @@ class MaintenanceEnv(gym.Env):
 
         self.config = config or EnvConfig()
         self.risk_model = joblib.load(risk_model_path)
-
+        self.observed_risk = 0.0
+        self.uncertainty = 0.15
 
         self.action_space = spaces.Discrete(3)
 
         #Approximative Boundaries
-        low = np.array([250, 250, 1000, 0, 0, 0, 0, -100, 0, 0], dtype=np.float32)
-
-        high = np.array([350, 350, 3000, 100, 300, 1, 1, 100, 0.1, 0.3], dtype=np.float32)
+        low = np.array([250, 250, 1000, 0, 0, 0, 0, -100, 0, 0, 0, 0.0], dtype=np.float32)
+        high = np.array([350, 350, 3000, 100, 300, 1, 1, 100, 0.1, 0.3, 1, 0.2], dtype=np.float32)
 
         self.observation_space = spaces.Box(low=low, high=high, dtype=np.float32)
 
@@ -105,8 +105,16 @@ class MaintenanceEnv(gym.Env):
         x = pd.DataFrame([features], columns=self.feature_cols)
         risk = self.risk_model.predict_proba(x)[:, 1][0]
         return float(np.clip(risk, 0.0, 1.0))
-
-    def _to_obs(self, features: dict) -> np.ndarray:
+    
+    def _observe_risk(self, true_risk: float, inspected: bool) -> tuple[float, float]:
+        if inspected:
+            std = 0.01
+        else:
+            std = 0.5
+        observed = np.clip(true_risk + self.rng.normal(0.0, std), 0.0, 1.0)
+        return float(observed), float(std)
+    
+    def _to_obs(self, features: dict, observe_risk:float, uncertainty: float) -> np.ndarray:
         obs = np.array(
             [
                 features["Air temperature"],
@@ -116,9 +124,11 @@ class MaintenanceEnv(gym.Env):
                 features["Tool wear"],
                 float(features["Type_L"]),
                 float(features["Type_M"]),
-                features["temp_diff"],
+                features["temp_diff"],  
                 features["torque_speed_ratio"],
                 features["wear_rate"],
+                observe_risk, 
+                uncertainty
             ],
             dtype=np.float32,
         )
@@ -130,11 +140,14 @@ class MaintenanceEnv(gym.Env):
         self.current_features = self._sample_initial_state()
         self.current_features = self._clip_features(self.current_features)
 
-        risk_score = self._predict_risk(self.current_features)
-        obs = self._to_obs(self.current_features)
+        self.true_risk = self._predict_risk(self.current_features)
+        self.observed_risk, self.uncertainty = self._observe_risk(self.true_risk, inspected=False)
+        obs = self._to_obs(self.current_features, self.observed_risk, self.uncertainty)
 
         info = {
-            "risk_score": risk_score,
+            "true_risk": self.true_risk,
+            "observed_risk": self.observed_risk, 
+            "uncertainty": self.uncertainty, 
             "step": self.current_step,
         }
         return obs, info
@@ -154,43 +167,50 @@ class MaintenanceEnv(gym.Env):
             features["Tool wear"] += float(
                 self.rng.uniform(cfg.wear_increase_min, cfg.wear_increase_max)
             )
-            features["Air temperature"] += float(self.rng.normal(0, cfg.noise_std_temp))
-            features["Process temperature"] += float(self.rng.normal(0, cfg.noise_std_temp))
-            features["Rotational speed"] += float(self.rng.normal(0, cfg.noise_std_speed))
-            features["Torque"] += float(self.rng.normal(0, cfg.noise_std_torque))
+            features["Air temperature"] += float(self.rng.normal(2, cfg.noise_std_temp))
+            features["Process temperature"] += float(self.rng.normal(2, cfg.noise_std_temp))
+            features["Rotational speed"] += float(self.rng.normal(2, cfg.noise_std_speed))
+            features["Torque"] += float(self.rng.normal(2, cfg.noise_std_torque))
 
         elif action == ACTION_INSPECT:
             #smaller impact than continue, but small cost
             reward -= cfg.inspect_cost
-            features["Tool wear"] += float(self.rng.uniform(0.5, 2.0))
-            features["Air temperature"] += float(self.rng.normal(0, cfg.noise_std_temp * 0.3))
-            features["Process temperature"] += float(self.rng.normal(0, cfg.noise_std_temp * 0.3))
-            features["Rotational speed"] += float(self.rng.normal(0, cfg.noise_std_speed * 0.2))
-            features["Torque"] += float(self.rng.normal(0, cfg.noise_std_torque * 0.2))
+            features["Tool wear"] += float(self.rng.uniform(0.0, 0.8))
 
         elif action == ACTION_MAINTAIN:
             reward -= cfg.maintain_cost
 
-            # Partial wear reset
             features["Tool wear"] = float(
                 self.rng.uniform(cfg.maintain_reset_min, cfg.maintain_reset_max)
             )
-            # Small stabilisation
-            features["Torque"] += float(self.rng.normal(-1.0, 0.5))
-            features["Rotational speed"] += float(self.rng.normal(0.0, 5.0))
+            features["Torque"] += float(self.rng.normal(-1.0, 0.3))
+            features["Rotational speed"] += float(self.rng.normal(0.0, 3.0))
 
         else:
             raise ValueError(f"Invalid action: {action}")
 
         features = self._clip_features(features)
-        risk_score = self._predict_risk(features)
+        true_risk = self._predict_risk(features)
 
-        # Penalty if we continnue as risk is high
-        if action == ACTION_CONTINUE and risk_score > cfg.risk_threshold:
-            reward -= cfg.high_risk_penalty * risk_score
+        if action == ACTION_INSPECT:
+            observed_risk, uncertainty = self._observe_risk(true_risk, inspected=True)
+        else:
+            observed_risk, uncertainty = self._observe_risk(true_risk, inspected=False)
+
+        if action == ACTION_CONTINUE and true_risk > 0.55:
+            reward -= 4.0 * true_risk
+
+        if action == ACTION_MAINTAIN and true_risk < 0.30:
+            reward -= 2.0
+
+        if 0.30 <= true_risk <= 0.60 and action != ACTION_INSPECT:
+            reward -= 5
+
+        if 0.30 <= true_risk <= 0.60 and action == ACTION_INSPECT:
+            reward += 4
 
         # Failure event
-        failure_event = self.rng.random() < risk_score
+        failure_event = self.rng.random() < true_risk
         terminated = False
         truncated = False
 
@@ -202,10 +222,12 @@ class MaintenanceEnv(gym.Env):
             truncated = True
 
         self.current_features = features
-        obs = self._to_obs(features)
+        obs = self._to_obs(features, observed_risk, uncertainty)
 
         info = {
-            "risk_score": risk_score,
+            "true_risk": true_risk,
+            "observed_risk": observed_risk,
+            "uncertainty": uncertainty,
             "failure_event": failure_event,
             "step": self.current_step,
             "action_name": ["continue", "inspect", "maintain"][action],

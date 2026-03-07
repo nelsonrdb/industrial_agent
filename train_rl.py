@@ -4,7 +4,6 @@ import os
 
 from stable_baselines3 import DQN
 from stable_baselines3.common.monitor import Monitor
-from risk_model import load_data, prepare_features_and_target
 from env import MaintenanceEnv, EnvConfig
 
 
