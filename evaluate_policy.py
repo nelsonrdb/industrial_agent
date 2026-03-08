@@ -31,7 +31,7 @@ def run_one_episode(env, policy_fn):
         action_list.append(action)
         obs, reward, terminated, truncated, info = env.step(action)
         true_risk_list.append(info["true_risk"])
-        uncertainty_list.append(info["uncertainty"])
+        uncertainty_list.append(info["initial_uncertainty"])
         total_reward += reward
         steps += 1
         if info.get("failure_event", False):
@@ -50,7 +50,6 @@ def run_one_episode(env, policy_fn):
 
 def evaluate_policy(env, policy_fn, n_episodes=100):
     results = [run_one_episode(env, policy_fn) for _ in range(n_episodes)]
-    
     return {
         "mean_reward": float(np.mean([r["total_reward"] for r in results])),
         "mean_steps": float(np.mean([r["steps"] for r in results])),
@@ -94,10 +93,9 @@ def main():
             return ACTION_INSPECT
         return ACTION_CONTINUE
 
-    print("RL policy:", evaluate_policy(env, rl_policy, n_episodes=200))
-    print("Always continue:", evaluate_policy(env, always_continue, n_episodes=200))
-    print("Threshold policy:", evaluate_policy(env, threshold_policy, n_episodes=200))
-
+    print("RL policy mean reward:", evaluate_policy(env, rl_policy, n_episodes=200)["mean_reward"])
+    print("Always continue mean reward:", evaluate_policy(env, always_continue, n_episodes=200)["mean_reward"])
+    print("Threshold policy mean reward:", evaluate_policy(env, threshold_policy, n_episodes=200)["mean_reward"])
     return evaluate_policy(env, rl_policy, n_episodes=200)
 
 
