@@ -23,11 +23,15 @@ def run_one_episode(env, policy_fn):
     failure_count = 0
     steps = 0
     action_list = []
+    true_risk_list = []
+    uncertainty_list = []
 
     while not done:
         action = policy_fn(obs, info)
         action_list.append(action)
         obs, reward, terminated, truncated, info = env.step(action)
+        true_risk_list.append(info["true_risk"])
+        uncertainty_list.append(info["uncertainty"])
         total_reward += reward
         steps += 1
         if info.get("failure_event", False):
@@ -38,7 +42,9 @@ def run_one_episode(env, policy_fn):
         "total_reward": total_reward,
         "steps": steps,
         "failure_count": failure_count,
-        "action_list" : np.array(action_list)
+        "action_list" : np.array(action_list), 
+        "true_risk_list": np.array(true_risk_list), 
+        "uncertainty_list": np.array(uncertainty_list)
     }
 
 
@@ -49,8 +55,9 @@ def evaluate_policy(env, policy_fn, n_episodes=100):
         "mean_reward": float(np.mean([r["total_reward"] for r in results])),
         "mean_steps": float(np.mean([r["steps"] for r in results])),
         "failure_rate": float(np.mean([r["failure_count"] > 0 for r in results])),
-        "action_list" : np.concat([r["action_list"] for r in results])
-    }
+        "action_list" : np.concat([r["action_list"] for r in results]),
+        "true_risk_list" : np.concat([r["true_risk_list"] for r in results]), 
+        "uncertainty_list" : np.concat([r["uncertainty_list"] for r in results])}
 
 
 def main():

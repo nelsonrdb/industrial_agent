@@ -22,6 +22,11 @@ This project models the problem as a **Partially Observed Markov Decision Proces
 
 based on a state defined by machine sensor data, and partially observed latent quantity. 
 
+--- 
+### Data 
+
+Data used for this project can be found from the *Predictive Maintenance Dataset (AI4I 2020)* Kaggle project. 
+https://www.kaggle.com/datasets/stephanmatzka/predictive-maintenance-dataset-ai4i-2020
 
 ---
 
@@ -132,9 +137,9 @@ Noise is added to simulate realistic measurements:
 | Variable            | Noise     |
 | ------------------- | --------- |
 | Air temperature     | $\mathcal{N}(2, 0.3)$ |
-| Process temperature | N(2, 0.3) |
-| Rotational speed    | N(2, 8)   |
-| Torque              | N(2, 0.8) |
+| Process temperature | $\mathcal{N}(2, 0.3)$ |
+| Rotational speed    | $\mathcal{N}(2, 8)$  |
+| Torque              | $\mathcal{N}(2, 0.8)$ |
 
 Maintenance resets wear:
 
@@ -214,13 +219,17 @@ Reinforcement Learning → Maintenance Policy
 ```
 project/
 │
-├── maintenance_env.py
+├── env.py
 ├── risk_model.py
+├── evaluate_policy.py
+├── sklearn_pipeline.py
+├── train_rl.py
 ├── data/
-│   └── machines.csv
+│   └── ai4i2020.csv
 │
 ├── model/
-│   ├── risk_model.joblib
+│   └── rl_models
+        └── dqn_maintenance_agent.zip
 │   └── features.joblib
 │
 └── README.md

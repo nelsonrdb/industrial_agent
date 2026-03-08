@@ -1,1 +1,7 @@
 __pycache__/
+artifacts/tensorboard/
+artifacts/monitor.csv
+artifacts/monitor.csv
+
+
+artifactors/*
