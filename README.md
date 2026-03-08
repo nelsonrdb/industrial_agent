@@ -64,6 +64,8 @@ Additional variables:
 * **observed_risk** → noisy estimation of failure probability
 * **uncertainty** → uncertainty of the risk estimate
 
+The environment assumes that the true failure risk of the machine is not directly observable by the agent. Instead, the agent receives a noisy estimate of this risk, denoted as observed_risk. This observation is obtained by perturbing the true risk with stochastic noise, which reflects the imperfect nature of predictive maintenance systems and sensor measurements in real industrial settings.
+
 ---
 ## Three possible actions 
 
@@ -104,8 +106,8 @@ for continuing operation without failure.
 
 | Action   | Cost |
 | -------- | ---- |
-| Inspect  | -0.4 |
-| Maintain | -4.5 |
+| Inspect  | -0.2 |
+| Maintain | -0.5 |
 | Failure  | -18  |
 
 ---
@@ -117,6 +119,8 @@ Additional penalties encourage safe operation:
 * Continuing when risk is high → penalty
 * Performing maintenance too early → penalty
 * Not inspecting during uncertain medium-risk states → penalty
+
+This reward shaping guides the agent toward safer and more informative strategies while still requiring it to reason under partial observability, since the agent only has access to a noisy estimate of the risk (observed_risk).
 
 ---
 
@@ -133,19 +137,6 @@ Tool wear += Uniform(4, 9)
 ### Sensor noise
 
 Noise is added to simulate realistic measurements:
-
-| Variable            | Noise     |
-| ------------------- | --------- |
-| Air temperature     | $\mathcal{N}(2, 0.3)$ |
-| Process temperature | $\mathcal{N}(2, 0.3)$ |
-| Rotational speed    | $\mathcal{N}(2, 8)$  |
-| Torque              | $\mathcal{N}(2, 0.8)$ |
-
-Maintenance resets wear:
-
-```
-Tool wear ∈ Uniform(0, 8)
-```
 
 ---
 
@@ -200,7 +191,7 @@ This creates a **POMDP-like setting** where the agent must decide when it is wor
 An episode ends when:
 
 * a **failure occurs**
-* the **maximum number of steps (20)** is reached
+* the **maximum number of steps (40)** is reached
 
 ---
 
