@@ -225,3 +225,8 @@ project/
 │
 └── README.md
 ```
+
+--- 
+### Plots and analaysis
+
+A quick look on how the learned policy behaves is available in the file *notebook.py*
